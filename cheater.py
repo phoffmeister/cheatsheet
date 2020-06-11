@@ -4,27 +4,40 @@ from pathlib import Path
 
 
 class Cheatsheet():
-    std_loc = {
-            'nvim': [],
-            'tmux': [],
-            }
-    # nvim file locations
-    std_loc['nvim'].append(Path.home() / '.config' / 'nvim' / 'init.vim')
-    std_loc['nvim'].append(Path.home() / '.vimrc')
+    def __init__(self,
+            nvim_path=None,
+            nvim_marker='\" --cheat',
+            nvim_separator='|',
+            tmux_path=None,
+            tmux_marker='# --cheat',
+            tmux_separator='|',
+            file_out='cheatsheet.html'):
 
-    # tmux file locations
-    std_loc['tmux'].append(Path.home() / '.tmux.conf')
-
-    def get_first_loc(ident):
-        if ident in Cheatsheet.std_loc:
-            for loc in Cheatsheet.std_loc[ident]:
-                if loc.exists():
-                    return loc
-            return None
+        self.file_out=file_out
+        self.cheats = dict()
+        self.settings = dict()
+        self.settings['nvim'] = dict()
+        if not nvim_path:
+            self.settings['nvim']['path'] = Path.home() / '.config' / 'nvim' / 'init.vim'
         else:
-            return None
+            self.settings['nvim']['path'] = nvim_path
+        self.settings['nvim']['marker'] = nvim_marker
+        self.settings['nvim']['separator'] = nvim_separator
 
-    def get_head():
+        self.settings['tmux'] = dict()
+        if not tmux_path:
+            self.settings['tmux']['path'] = Path.home() / '.tmux.conf'
+        else:
+            self.settings['tmux']['path'] = tmux_path
+        self.settings['tmux']['marker'] = tmux_marker
+        self.settings['tmux']['separator'] = tmux_separator
+
+
+    def config_exists(self, ident):
+        return self.settings[ident]['path'].exists()
+
+
+    def get_html_head(self):
         return """<!DOCTYPE html>
 <html><head><title>CheatSheet</title><meta charset="utf-8"/>
 <link rel="stylesheet" type="text/css" href="css/style.css"/>
@@ -32,22 +45,27 @@ class Cheatsheet():
 <body><section>
 """
 
-    def get_tail():
+    def get_html_tail(self):
         return "</section></body></html>"
 
-    def get_cheats(cheat_data):
+    def get_html_cheats(self):
         html = ""
-        for k in cheat_data:
-            html += f"<article><h2>{k}</h2>"
+        for ident in self.cheats:
+            html += f"<article><h2>{ident}</h2>"
             html += "<table><tr><th>Command</th><th>Key Combo</th></tr>"
-            for combo in cheat_data[k]:
+            for combo in self.cheats[ident]:
                 html += f"<tr><td>{combo[0]}</td><td>{combo[1]}</td></tr>"
             html += "</table></article>"
         return html
 
-    def read_file(file_p, marker):
+    def read_cheats(self, ident):
+        if ident not in self.settings:
+            print( f'no settings for {ident}' )
+            return
+
+        marker = self.settings[ident]['marker']
         cheats = []
-        with open(file_p, "r") as f:
+        with open(self.settings[ident]['path'], "r") as f:
             line = f.readline()
             while line:
                 if line.startswith(marker):
@@ -58,7 +76,13 @@ class Cheatsheet():
                             (ch[0].lstrip().rstrip(),
                                 ch[1].lstrip().rstrip()))
                 line = f.readline()
-        return cheats
+        self.cheats[ident] = cheats
+
+    def write_html(self):
+        with open(self.file_out, "w") as f:
+            f.write(self.get_html_head())
+            f.write(self.get_html_cheats())
+            f.write(self.get_html_tail())
 
 
 def main():
@@ -74,23 +98,18 @@ def main():
 
     args = parser.parse_args()
 
-    cheats = {}
+    cheat_sheet = Cheatsheet()
     if args.tmux:
-        file_loc = Cheatsheet.get_first_loc('tmux')
-        if file_loc:
-            print(f'using {file_loc} for tmux')
-            cheats['tmux'] = Cheatsheet.read_file(file_loc, "#cheat")
+        if cheat_sheet.config_exists('tmux'):
+            print(f'using {cheat_sheet.settings["tmux"]["path"]} for tmux')
+            cheat_sheet.read_cheats('tmux')
 
     if args.nvim:
-        file_loc = Cheatsheet.get_first_loc('nvim')
-        if file_loc:
-            print(f'using {file_loc} for nvim')
-            cheats['nvim'] = Cheatsheet.read_file(file_loc, "\"cheat")
+        if cheat_sheet.config_exists('nvim'):
+            print(f'using {cheat_sheet.settings["nvim"]["path"]} for nvim')
+            cheat_sheet.read_cheats('nvim')
 
-    with open("cheatsheet.html", "w") as f:
-        f.write(Cheatsheet.get_head())
-        f.write(Cheatsheet.get_cheats(cheats))
-        f.write(Cheatsheet.get_tail())
+        cheat_sheet.write_html()
 
 
 if __name__ == "__main__":
