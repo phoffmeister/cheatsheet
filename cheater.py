@@ -103,11 +103,17 @@ def main():
         if cheat_sheet.config_exists('tmux'):
             print(f'using {cheat_sheet.settings["tmux"]["path"]} for tmux')
             cheat_sheet.read_cheats('tmux')
+        else:
+            print(f'could not find {cheat_sheet.settings["tmux"]["path"]}')
+            return
 
     if args.nvim:
         if cheat_sheet.config_exists('nvim'):
             print(f'using {cheat_sheet.settings["nvim"]["path"]} for nvim')
             cheat_sheet.read_cheats('nvim')
+        else:
+            print(f'could not find {cheat_sheet.settings["nvim"]["path"]}')
+            return
 
         cheat_sheet.write_html()
 
